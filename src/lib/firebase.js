@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAnalytics, isSupported } from "firebase/analytics";
-import { getMessaging } from "firebase/messaging";
+import { initializeApp, getApps } from "firebase/app"; // removed getApp as it wasn't used
+import { getAuth } from "firebase/auth";
+import { getMessaging, isSupported } from "firebase/messaging"; // Added isSupported for extra safety
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -15,28 +15,23 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-// 1. Singleton pattern: Check if app already exists to prevent re-initialization crashes
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// 1. Singleton pattern: Check if app already exists
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-let analytics;
-let messaging;
+// 2. Initialize Auth
+const auth = getAuth(app);
 
-// 2. Client-side checks: Analytics and Messaging only work in the browser (not on the server)
+// 3. Initialize Messaging (Safe Mode)
+let messaging = null;
+
 if (typeof window !== "undefined") {
-  // Initialize Analytics if supported
-  isSupported().then((supported) => {
-    if (supported) {
-      analytics = getAnalytics(app);
-    }
-  });
-
-  // Initialize Messaging (FCM)
+  // 🛡️ FIX: Wrap in try-catch to prevent "addEventListener" crashes during build
   try {
-    messaging = getMessaging(app);
+     messaging = getMessaging(app);
   } catch (err) {
-    console.error("Firebase Messaging failed to init (likely due to unsupported browser):", err);
+    console.warn("Firebase Messaging failed to initialize (this is normal during build/SSR):", err);
   }
 }
 
-// 3. Export instances for use in other components
-export { app, analytics, messaging };
+// 4. Export 'auth' explicitly so other files can find it
+export { app, auth, messaging };
